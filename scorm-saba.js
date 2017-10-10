@@ -1,4 +1,4 @@
-﻿/* SCORM API SABA PERFECT
+/* SCORM API SABA PERFECT
 LICENCE MIT
 Copyright 2017 Damien Renou
 
@@ -227,30 +227,37 @@ function ScormStartCom(){
 
 //Sauvegarde automatique
 function ScormProgressSave(haveLoop){
-	if(saveprogression&&lastPage0>0){
-		var xmlprogress = getXmlInteractions();
+	
+	if(lastPage0>0){
+		var xmlForSaba = getXmlMinimalSabaLMS();
 		try{
-			API.LMSSetValue('cmi.core.lesson_location',lastPage0);
-			API.LMSSetValue('cmi.suspend_data',xmlprogress);
-			if(haveLoop){
-			setTimeout(function(){ ScormProgressSave(true); },120000);
+			if(xmlForSaba.length>4096){
+				logconsole("xmlForSaba is too long");
+			}else{
+				API.LMSSetValue('cmi.core.lesson_location',lastPage0);
+				API.LMSSetValue('cmi.suspend_data',xmlForSaba);
 			}
+			if(haveLoop){
+				setTimeout(function(){ ScormProgressSave(true); },120000);
+			}
+			
 		}catch(exception){
 			logconsole("ScormProgressSave error");
 			return false;	
 		}
 	}
+	
 }
 setTimeout(function(){ ScormProgressSave(true);},120000);
 
 function ScormProgressLoad(){
-	var xmlprogress = API.LMSGetValue("cmi.suspend_data");
+	var xmlForSaba = API.LMSGetValue("cmi.suspend_data");
 	var lessonLocation = parseInt(API.LMSGetValue("cmi.core.lesson_location"));
-	if (typeof(xmlprogress) != "undefined"){
-		if(xmlprogress!=""){
+	if (typeof(xmlForSaba) != "undefined"){
+		if(xmlForSaba!=""){
 			if(lessonLocation>0){
 				var idsession = getIDProgressionAll();
-				amplify.store(idsession,xmlprogress);
+				amplify.store(idsession,xmlForSaba);
 				var dat = 'Sauvegarde');
 				amplify.store(idsession + '-date',dat);
 				amplify.store(idsession + '-page',lessonLocation);
@@ -659,3 +666,29 @@ function escapeSco(unsafe){
 	
 }
 
+function getXmlMinimalSabaLMS(){
+	
+	var x = '<?xml version="1.0" ?><interactions>';
+	x += '<ViewerAfterBilan>' + ViewerAfterBilan + '</ViewerAfterBilan>';
+	x += '<lastPageMemId>' + lastPage0 + '</lastPageMemId>';
+	x += '<ViewerAfterBilanList>' + ViewerAfterBilanList + '</ViewerAfterBilanList>';
+	x += '<initExam>' + initExam + '</initExam>';
+	x += '<actualExamId>' + actualExamId + '</actualExamId>';
+	x += '<actualExamIdScreen>' + actualExamIdScreen + '</actualExamIdScreen>';
+	x += '<lastExamId>' + lastExamId + '</lastExamId>';
+	x += '<lastAfterExamId>' + lastAfterExamId + '</lastAfterExamId>';
+	x += '<qcmRandomize>' + qcmRandomize + '</qcmRandomize>';
+	
+	x += '<LUDIlife>' + LUDIlife + '</LUDIlife>';
+	x += '<LUDImoney>' + LUDImoney + '</LUDImoney>';
+	x += '<LUDIscore>' + LUDIscore + '</LUDIscore>';
+
+	if(Variable1!=''){
+		x += "<Variable1><![CDATA[" + Variable1 + "]]></Variable1>";
+	}
+	
+	x += '</interactions>';
+	
+	return x;
+	
+}
