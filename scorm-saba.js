@@ -1,13 +1,16 @@
 /* SCORM API SABA PERFECT
 LICENCE MIT
 Copyright 2017 Damien Renou
-
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
+$.getScript('https://cdnjs.cloudflare.com/ajax/libs/amplifyjs/1.1.2/amplify.min.js', function()
+{
+	logconsole("Amplify is include");
+});
+
 
 var QueueInteractions = new Array();
 var QueueInteractions_count=0;
@@ -177,14 +180,19 @@ function initAPI(win){
 		}
 		if(API==undefined) {
 			alert("API not found / API non identifiée");
-			top.close();
+			if(!haveLocalFileUrl()){
+				top.close();
+			}
+			
 		}
 
 	}catch(exception){
 		
 		if(API==undefined) {
 			alert("API not found / API non identifiée");
-			top.close();
+			if(!haveLocalFileUrl()){
+				top.close();
+			}
 		}
 		
 		logconsole("findAPI error");
@@ -202,27 +210,34 @@ function ScormStartCom(){
 	sendInteractionsScorm = false;
 	ScormStartComProcess();
 	
-	if (typeof(API.LMSInitialize) != "undefined") {
+	if (API){
 		
-		if(API.LMSInitialize('')=="false") {
-			alert("LMSInitialize returns false");
-			top.close();
-		}
-		
-		if (typeof(API.LMSGetValue) != "undefined"){
+		if (typeof(API.LMSInitialize) != "undefined"){
 			
-			if(
-			(API.LMSGetValue('cmi.core.lesson_status'!='completed'))
-			|| (API.LMSGetValue('cmi.core.lesson_status'!='passed'))
-			|| (API.LMSGetValue('cmi.core.lesson_status'!='failed'))
-			){
-				API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+			if(API.LMSInitialize('')=="false") {
+				alert("LMSInitialize returns false");
+				if(!haveLocalFileUrl()){
+					top.close();
+				}
 			}
 			
-			ScormProgressLoad();
-			
+			if (typeof(API.LMSGetValue) != "undefined"){
+				
+				if(
+				(API.LMSGetValue('cmi.core.lesson_status'!='completed'))
+				|| (API.LMSGetValue('cmi.core.lesson_status'!='passed'))
+				|| (API.LMSGetValue('cmi.core.lesson_status'!='failed'))
+				){
+					API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+				}
+				setTimeout(function(){
+					ScormProgressLoad();
+				},1000);
+			}
 		}
+	
 	}
+	
 }
 
 //Sauvegarde automatique
@@ -236,9 +251,7 @@ function ScormProgressSave(haveLoop){
 			}else{
 				API.LMSSetValue('cmi.core.lesson_location',lastPage0);
 				API.LMSSetValue('cmi.suspend_data',xmlForSaba);
-			}
-			if(haveLoop){
-				setTimeout(function(){ ScormProgressSave(true); },120000);
+				logconsole("ScormProgressSave cmi.core.lesson_location:" + lastPage0);
 			}
 			
 		}catch(exception){
@@ -247,26 +260,45 @@ function ScormProgressSave(haveLoop){
 		}
 	}
 	
+	if(haveLoop){
+		setTimeout(function(){ ScormProgressSave(true); },120000);
+	}
+	
 }
 setTimeout(function(){ ScormProgressSave(true);},120000);
 
 function ScormProgressLoad(){
+	
 	var xmlForSaba = API.LMSGetValue("cmi.suspend_data");
 	var lessonLocation = parseInt(API.LMSGetValue("cmi.core.lesson_location"));
-	if (typeof(xmlForSaba) != "undefined"){
-		if(xmlForSaba!=""){
-			if(lessonLocation>0){
-				var idsession = getIDProgressionAll();
-				amplify.store(idsession,xmlForSaba);
-				var dat = 'Sauvegarde');
-				amplify.store(idsession + '-date',dat);
-				amplify.store(idsession + '-page',lessonLocation);
-				saveprogression  = true;
-				loadProgressionAll();
-				saveprogression  = false;
-			}
-		}
+	
+	
+	
+	if(isNaN(lessonLocation)){
+		lessonLocation = 0;
 	}
+	
+	if(typeof(xmlForSaba) != "undefined"){
+		xmlForSaba = "";
+	}
+	lastPage0 = lessonLocation;
+	lastPage1 = lessonLocation;
+	xmlForSaba = getXmlMinimalSabaLMS();
+	
+	logconsole("ScormProgressLoad cmi.core.lesson_location:" + lessonLocation);
+	
+	if(lessonLocation>0){
+		var idsession = getIDProgressionAll();
+		amplify.store(idsession,xmlForSaba);
+		var dat = 'Sauvegarde';
+		amplify.store(idsession + '-date',dat);
+		amplify.store(idsession + '-page',lessonLocation);
+		saveprogression = true;
+		logconsole("loadProgressionAll();");
+		loadProgressionAll();
+		saveprogression  = false;
+	}
+
 }
 
 function ScormStartComProcess(){
@@ -309,7 +341,7 @@ function ScormInteractionChamilo(n,id,type,latency,result,answers,description,co
 		//id : Ludiscape transmet une serie de donnes pour cette chaÃ®ne afin d'identifier la question
 		//type : Type de question : qcm tcm drop etc
 		//latency : Temps de reponse
-		//result : Indique si l'utilisateur a rÃ©pondu correctement Ã  la question ou non.
+		//result : Indique si l'utilisateur a rÃ©pondu correctement Ã  la question ou non.
 		//answers : reponse de l'apprenant
 		if (API != null){
 			
