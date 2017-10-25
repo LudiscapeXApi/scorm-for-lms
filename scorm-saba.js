@@ -179,7 +179,7 @@ function initAPI(win){
 			findAPI(win.opener);
 		}
 		if(API==undefined) {
-			alert("API not found / API non identifiée");
+			alert("API not found");
 			if(!haveLocalFileUrl()){
 				top.close();
 			}
@@ -189,7 +189,7 @@ function initAPI(win){
 	}catch(exception){
 		
 		if(API==undefined) {
-			alert("API not found / API non identifiée");
+			alert("API not found");
 			if(!haveLocalFileUrl()){
 				top.close();
 			}
@@ -210,25 +210,25 @@ function ScormStartCom(){
 	sendInteractionsScorm = false;
 	ScormStartComProcess();
 	
-	if (API){
+	if(API){
 		
-		if (typeof(API.LMSInitialize) != "undefined"){
+		if (typeof(API.Initialize) != "undefined"){
 			
-			if(API.LMSInitialize('')=="false") {
+			if(API.Initialize('')=="false") {
 				alert("LMSInitialize returns false");
 				if(!haveLocalFileUrl()){
 					top.close();
 				}
 			}
 			
-			if (typeof(API.LMSGetValue) != "undefined"){
+			if (typeof(API.GetValue) != "undefined"){
 				
 				if(
-				(API.LMSGetValue('cmi.core.lesson_status'!='completed'))
-				|| (API.LMSGetValue('cmi.core.lesson_status'!='passed'))
-				|| (API.LMSGetValue('cmi.core.lesson_status'!='failed'))
+				(API.GetValue('cmi.core.lesson_status'!='completed'))
+				|| (API.GetValue('cmi.core.lesson_status'!='passed'))
+				|| (API.GetValue('cmi.core.lesson_status'!='failed'))
 				){
-					API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+					API.SetValue('cmi.core.lesson_status', 'incomplete');
 				}
 				setTimeout(function(){
 					ScormProgressLoad();
@@ -249,11 +249,16 @@ function ScormProgressSave(haveLoop){
 			if(xmlForSaba.length>4096){
 				logconsole("xmlForSaba is too long");
 			}else{
-				API.LMSSetValue('cmi.core.lesson_location',lastPage0);
-				API.LMSSetValue('cmi.suspend_data',xmlForSaba);
-				logconsole("ScormProgressSave cmi.core.lesson_location:" + lastPage0);
+				if(typeof(API.SetValue)!="undefined"){
+					try{
+						
+						API.SetValue('cmi.core.lesson_location',lastPage0);
+						API.SetValue('cmi.suspend_data',xmlForSaba);
+					}catch(exception){
+					}
+					logconsole("ScormProgressSave cmi.core.lesson_location:" + lastPage0);
+				}
 			}
-			
 		}catch(exception){
 			logconsole("ScormProgressSave error");
 			return false;	
@@ -261,7 +266,7 @@ function ScormProgressSave(haveLoop){
 	}
 	
 	if(haveLoop){
-		setTimeout(function(){ ScormProgressSave(true); },120000);
+		setTimeout(function(){ScormProgressSave(true); },120000);
 	}
 	
 }
@@ -269,11 +274,16 @@ setTimeout(function(){ ScormProgressSave(true);},120000);
 
 function ScormProgressLoad(){
 	
-	var xmlForSaba = API.LMSGetValue("cmi.suspend_data");
-	var lessonLocation = parseInt(API.LMSGetValue("cmi.core.lesson_location"));
+	var xmlForSaba = "";
+	var lessonLocation = 0;
 	
-	
-	
+	try{
+		xmlForSaba = API.GetValue("cmi.suspend_data");
+		lessonLocation = parseInt(API.GetValue("cmi.core.lesson_location"));
+	}catch(exception){
+
+	}
+
 	if(isNaN(lessonLocation)){
 		lessonLocation = 0;
 	}
@@ -309,7 +319,6 @@ function ScormStartComProcess(){
 		
 		var initOk = false;
 		
-		//SCORM 2004
 		if (typeof(API.Initialize) != "undefined"){
 			var r = API.Initialize('');
 			if(r==true||r=='true'){
@@ -337,11 +346,11 @@ function ScormInteractionChamilo(n,id,type,latency,result,answers,description,co
 	
 	if(sendInteractionsScorm){
 		
-		//n : Ludiscape transmet le numÃ©ro de l'interaction
+		//n : Ludiscape transmet le numero de l'interaction
 		//id : Ludiscape transmet une serie de donnes pour cette chaÃ®ne afin d'identifier la question
 		//type : Type de question : qcm tcm drop etc
 		//latency : Temps de reponse
-		//result : Indique si l'utilisateur a rÃ©pondu correctement Ã  la question ou non.
+		//result : Indique si l'utilisateur a repondu correctement Ã  la question ou non.
 		//answers : reponse de l'apprenant
 		if (API != null){
 			
@@ -406,9 +415,7 @@ function ScormInteractionChamilo(n,id,type,latency,result,answers,description,co
 					}else{
 						API.LMSSetValue("cmi.interactions." + n + ".correct_responses", '?');
 					}
-					
-					//olms.interactions[n][4] = FormatAnswersScorm;
-					
+
 					API.LMSSetValue('cmi.session_time', MillisecondsToTime((new Date()).getTime() - ScormStartTime));
 
 					
@@ -457,17 +464,21 @@ function CheckLMSFinishFinal(){
 			cpl = 'incomplete';
 		}
 		
-		API.LMSSetValue('cmi.core.session_time', MillisecondsToTime((new Date()).getTime() - ScormStartTime));
-		var timefull = MillisecondsToTime2004((new Date()).getTime() - ScormStartTime);
-		API.SetValue('cmi.core.session_time', timefull);
-		API.SetValue('cmi.session_time', timefull);
-		API.LMSSetValue('cmi.core.lesson_status',cpl);
-		API.SetValue('cmi.core.lesson_status',cpl);
-		API.SetValue('cmi.lesson_status',cpl);
-		API.SetValue('cmi.completion_status',cpl);
-		API.LMSCommit('');
-		API.Commit('');
-		
+		if (typeof(API.LMSSetValue) != "undefined") {
+			API.LMSSetValue('cmi.core.session_time', MillisecondsToTime((new Date()).getTime() - ScormStartTime));
+		}
+		if (typeof(API.SetValue) != "undefined") {
+			var timefull = MillisecondsToTime2004((new Date()).getTime() - ScormStartTime);
+			API.SetValue('cmi.core.session_time', timefull);
+			API.SetValue('cmi.session_time', timefull);
+			API.SetValue('cmi.core.lesson_status',cpl);
+			API.SetValue('cmi.lesson_status',cpl);
+			API.SetValue('cmi.completion_status',cpl);
+			API.Commit('');
+		}
+		if (typeof(API.LMSCommit) != "undefined") {
+			API.LMSCommit('');
+		}
 		if (API.LMSFinish("")==false){
 			alertm("LMSFinish returns false");
 		}else{
@@ -497,18 +508,18 @@ function CheckLMSLearnerName(){
 			}
 		}
 		if(userN==''){
-			if (typeof(API.LMSGetValue)!="undefined"){
-				userN = API.LMSGetValue("cmi.core.student_name") ;
+			if (typeof(API.GetValue)!="undefined"){
+				userN = API.GetValue("cmi.core.student_name") ;
 			}
 		}
 		if(userN==''){
-			if (typeof(API.LMSGetValue)!="undefined"){
-				userN = API.LMSGetValue("cmi.student_name");
+			if (typeof(API.GetValue)!="undefined"){
+				userN = API.GetValue("cmi.student_name");
 			}
 		}
 		if(userN==''){
-			if (typeof(API.LMSGetValue)!="undefined"){
-				userN = API.LMSGetValue("cmi.core.student_id");
+			if (typeof(API.GetValue)!="undefined"){
+				userN = API.GetValue("cmi.core.student_id");
 			}
 		}
 	}
@@ -523,13 +534,13 @@ function SetScormIncomplete(){
 	}
 	SetScormScore();
 	if (API != null){
-		//SCORM 1.2
+		
 		if (typeof(API.LMSSetValue) != "undefined") {
 			API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
 			API.LMSSetValue('cmi.core.session_time', MillisecondsToTime((new Date()).getTime() - ScormStartTime));
 			API.LMSCommit('');
 		}
-		//SCORM 2004
+		
 		if (typeof(API.Terminate) != "undefined") {
 			API.SetValue('cmi.core.lesson_status', 'incomplete');
 			API.SetValue('cmi.core.session_time', MillisecondsToTime((new Date()).getTime() - ScormStartTime));
@@ -550,7 +561,7 @@ function SetScormComplete(){
 		
 		if (API != null){
 			
-			//SCORM 1.2
+			//SCORM 
 			if (typeof(API.LMSSetValue) != "undefined") {
 
 				SetScormScore();
@@ -562,7 +573,7 @@ function SetScormComplete(){
 				
 			}else{
 				
-				//SCORM 2004
+				//SCORM 
 				if (typeof(API.Terminate) != "undefined") {
 					SetScormScore();
 					if(autoFinishScore){
@@ -575,8 +586,6 @@ function SetScormComplete(){
 				
 			}
 			
-
-
 		}
 
 	}
@@ -587,17 +596,18 @@ var ScormStartTime = (new Date()).getTime();
 var SuspendData = '';
 
 function SetScormTimedOut(){
+	
 	if (API != null){
 		if (ScormSubmitted == false){
 			
-			//SCORM 1.2
+			//SCORM
 			if (typeof(API.LMSSetValue) != "undefined") {
 				SetScormScore();
 				API.LMSSetValue('cmi.core.exit', 'time-out'); 
 				API.LMSCommit('');
 				CheckLMSFinish();
 			}
-			//SCORM 2004
+			//SCORM
 			if (typeof(API.Terminate) != "undefined") {
 				SetScormScore();
 				API.SetValue('cmi.core.exit', 'time-out');
@@ -614,11 +624,9 @@ function SetScormComments(m){
 	if (API != null){
 		if (ScormSubmitted == false){
 
-			//SCORM 1.2
 			if (typeof(API.LMSSetValue) != "undefined") {
 				API.LMSSetValue('cmi.comments', m); 
 			}
-			//SCORM 2004
 			if (typeof(API.Terminate) != "undefined") {
 				API.SetValue('cmi.comments', m); 
 			}
@@ -674,15 +682,29 @@ function SetScormScore(score){
 				LastScore = score;
 				/*
 				SCORM 1.2
-				Note : la non régression du score et du statut sont des pratiques issues de retour d’expérience clients, pas de l’interprétation du SCORM.
-				On envisage généralement sa formation comme une activité dans laquelle il peut progresser mais pas régresser (sauf indication spécifiques pédagogiques)
+				Note : la non regression du score et du statut sont des pratiques issues de retour d’experience clients, pas de l’interpretation du SCORM.
+				On envisage generalement sa formation comme une activite dans laquelle il peut progresser mais pas regresser (sauf indication specifiques pedagogiques)
 				*/
-				if (LastScore > parseFloat(API.LMSGetValue('cmi.core.score.raw'))) {
-					API.LMSSetValue('cmi.core.score.raw', score);
-					ScormProgressSave(false);
+				
+				var oldScore = 0;
+				
+				try{
+					if (typeof(API.GetValue) != "undefined") {
+						oldScore = parseFloat(API.GetValue('cmi.core.score.raw'));
+					}
+				}catch(exception){
+
 				}
+				
+				if (typeof(API.SetValue) != "undefined") {
+					if(LastScore>oldScore){
+						API.SetValue('cmi.core.score.raw', score);
+						ScormProgressSave(false);
+					}
+				}					
+
 			}
-			logconsole("SetScormScore " + score);
+			logconsole("SetScormScore : " + score);
 		}
 	}
 	
