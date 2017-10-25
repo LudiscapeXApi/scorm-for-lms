@@ -529,18 +529,16 @@ function CheckLMSLearnerName(){
 }
 
 function SetScormIncomplete(){
-	if (ScormSubmitted == true){
+	if(ScormSubmitted == true){
 		return;
 	}
 	SetScormScore();
-	if (API != null){
-		
+	if(API != null){
 		if (typeof(API.LMSSetValue) != "undefined") {
 			API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
 			API.LMSSetValue('cmi.core.session_time', MillisecondsToTime((new Date()).getTime() - ScormStartTime));
 			API.LMSCommit('');
 		}
-		
 		if (typeof(API.Terminate) != "undefined") {
 			API.SetValue('cmi.core.lesson_status', 'incomplete');
 			API.SetValue('cmi.core.session_time', MillisecondsToTime((new Date()).getTime() - ScormStartTime));
@@ -701,7 +699,7 @@ function SetScormScore(score){
 						API.SetValue('cmi.core.score.raw', score);
 						ScormProgressSave(false);
 					}
-				}					
+				}
 
 			}
 			logconsole("SetScormScore : " + score);
