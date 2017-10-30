@@ -146,24 +146,38 @@ function ScormStartCom(){
 			
 		}
 		
-		if(typeof(API.LMSGetValue) != "undefined"){
-			setTimeout(function(){
-				ScormProgressLoad();
-			},1000);
-		}else{
-			if(typeof(API.GetValue) != "undefined"){
-				setTimeout(function(){
-					ScormProgressLoad();
-				},1000);
-			}
-		}
+		var pauseBtn = '<div onClick="quitScormProcess();" style="position:absolute;right:2px;top:0px;background:white;color:blue;cursor:pointer;" >';
+		pauseBtn += '||';
+		pauseBtn += '</div>'
+		$('body').append(pauseBtn);
 		
-		
-		
-		
+		setTimeout(function(){
+			ScormProgressLoad();
+		},200);
 		
 	}
 	
+}
+
+function quitScormProcess(){
+	
+	if(lastPage0>0){
+		
+		ScormProgressSave(true);
+		
+		try{
+			if (typeof(API.LMSSetValue) != "undefined") {
+				API.LMSSetValue("cmi.core.exit",'suspend');
+				API.LMSCommit('');
+			}
+			if (typeof(API.SetValue) != "undefined") {
+				API.SetValue("cmi.exit",'suspend');
+				API.Commit('');
+			}
+		}catch(exception){
+
+		}
+	}
 }
 
 //Sauvegarde automatique
@@ -172,23 +186,31 @@ function ScormProgressSave(haveLoop){
 	if(lastPage0>0){
 		
 		try{
-
+			
 			if(typeof(API.LMSSetValue)!="undefined"){
 				try{
-					
 					API.LMSSetValue('cmi.core.lesson_location',lastPage0);
+					API.LMSSetValue("cmi.core.exit",'suspend');
+					API.LMSCommit('');
+					logconsole("API.LMSSetValue cmi.core.lesson_location:" + lastPage0);
 				}catch(exception){
+					
 				}
-				logconsole("ScormProgressSave cmi.core.lesson_location:" + lastPage0);
+				
 			}
 			
 			if(typeof(API.SetValue)!="undefined"){
 				try{
 					
-					API.SetValue('cmi.core.lesson_location',lastPage0);
+					API.SetValue('cmi.location',lastPage0);
+					API.SetValue('cmi.suspend_data',lastPage0);
+					API.SetValue("cmi.exit",'suspend');
+					API.Commit('');
+					logconsole("API.SetValue cmi.location:" + lastPage0);
+					
 				}catch(exception){
 				}
-				logconsole("ScormProgressSave cmi.core.lesson_location:" + lastPage0);
+				
 			}
 			
 		}catch(exception){
@@ -214,26 +236,29 @@ function ScormProgressLoad(){
 			lessonLocation = parseInt(API.LMSGetValue("cmi.core.lesson_location"));
 		}
 		if (typeof(API.GetValue) != "undefined") {
-			lessonLocation = parseInt(API.GetValue("cmi.core.lesson_location"));
+			lessonLocation = parseInt(API.GetValue("cmi.location"));
 		}
 	}catch(exception){
 
 	}
 
 	if(isNaN(lessonLocation)){
-		lessonLocation = 0;
+		if (typeof(API.GetValue) != "undefined") {
+			lessonLocation = parseInt(API.GetValue("cmi.suspend_data"));
+		}
+		if(isNaN(lessonLocation)){
+			lessonLocation = 0;
+		}
 	}
 	
-	if(typeof(xmlForSaba) != "undefined"){
-		xmlForSaba = "";
-	}
-	lastPage0 = lessonLocation;
-	lastPage1 = lessonLocation;
-	xmlForSaba = getXmlMinimalSabaLMS();
-	
-	logconsole("ScormProgressLoad cmi.core.lesson_location:" + lessonLocation);
+	logconsole("ScormProgressLoad lesson_location:" + lessonLocation);
 	
 	if(lessonLocation>0){
+		
+		lastPage0 = lessonLocation;
+		lastPage1 = lessonLocation;
+		xmlForSaba = getXmlMinimalSabaLMS();
+	
 		var idsession = getIDProgressionAll();
 		amplify.store(idsession,xmlForSaba);
 		var dat = 'Sauvegarde';
@@ -635,18 +660,6 @@ function SetScormTimedOut(){
 		}
 	}
 }
-/*
-The SCORM 2004 element cmi.completion_status is designed to indicate whether the learner has completed the SCO and can take the following status values:
-completed,
-incomplete,
-not attempted,
-unknown
- 
-Your Pass/Fail status in SCORM 2004 falls under the element called cmi.success_status. This one indicates whether the learner has mastered the objective and can take the following values:
-passed,
-failed,
-unknown
-*/
 
 function SetScormComments(m){
 	if (API != null){
@@ -776,7 +789,7 @@ function escapeSco(unsafe){
 function getXmlMinimalSabaLMS(){
 	
 	var x = '<?xml version="1.0" ?><interactions>';
-	x += '<ViewerAfterBilan>' + ViewerAfterBilan + '</ViewerAfterBilan>';
+	x += '<ViewerAfterBilan>false</ViewerAfterBilan>';
 	x += '<lastPageMemId>' + lastPage0 + '</lastPageMemId>';
 	x += '<ViewerAfterBilanList>' + ViewerAfterBilanList + '</ViewerAfterBilanList>';
 	x += '<initExam>' + initExam + '</initExam>';
